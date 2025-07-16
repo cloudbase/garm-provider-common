@@ -601,21 +601,16 @@ function Install-Runner() {
 			Throw "missing metadata URL"
 		}
 
+		# Create user with administrator rights to run service as
 		$userPasswd = Get-RandomString -Length 10
 		$secPasswd = ConvertTo-SecureString "$userPasswd" -AsPlainText -Force
-		net user runner "$userPasswd" /add /active:yes
-		if($LASTEXITCODE){
-			Throw "Failed to create runner user"
-		}
+		New-LocalUser -Name "runner" -Password $secPasswd -PasswordNeverExpires -UserMayNotChangePassword
 		$pscreds = New-Object System.Management.Automation.PSCredential (".\runner", $secPasswd)
-		$adminGrpName = (gcim win32_group -Filter 'SID = "S-1-5-32-544"').Name
+		$adminGrpName = (Get-CimInstance win32_group -Filter 'SID = "S-1-5-32-544"').Name
 		if (!$adminGrpName) {
 			Throw "Could not find administrators group name"
 		}
-		net localgroup $adminGrpName runner /add
-		if($LASTEXITCODE){
-			Throw "Failed to add runner user to administrators group"
-		}
+		Add-LocalGroupMember -Group $adminGrpName -Member runner
 		$ntAcct = New-Object System.Security.Principal.NTAccount("runner")
 		$sid = $ntAcct.Translate([System.Security.Principal.SecurityIdentifier])
 		$sidBytes = New-Object byte[] ($sid.BinaryLength)
@@ -625,6 +620,7 @@ function Install-Runner() {
 		if ($result -ne 0) {
 		    Throw "Failed to grant privileges"
 		}
+
 		$bundle = wget -UseBasicParsing -Headers @{"Accept"="application/json"; "Authorization"="Bearer $Token"} -Uri $MetadataURL/system/cert-bundle
 		$converted = ConvertFrom-Json $bundle
 		foreach ($i in $converted.root_certificates.psobject.Properties){
@@ -659,6 +655,13 @@ function Install-Runner() {
 			Update-GarmStatus -CallbackURL $CallbackURL -Message "using cached runner found at $runnerDir"
 		}
 
+		# Ensure runner has full access to actions-runner folder
+		$runnerACL = Get-Acl $runnerDir
+		$runnerACL.SetAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+		    "runner", "FullControl", "ContainerInherit,ObjectInherit", "None", "Allow"
+		)))
+		Set-Acl -Path $runnerDir -AclObject $runnerAcl
+
 		Update-GarmStatus -CallbackURL $CallbackURL -Message "configuring and starting runner"
 		cd $runnerDir
 
@@ -676,7 +679,6 @@ function Install-Runner() {
 		$serviceNameFile = (Join-Path $runnerDir ".service")
 		wget -UseBasicParsing -Headers @{"Accept"="application/json"; "Authorization"="Bearer $Token"} -Uri $MetadataURL/system/service-name -OutFile $serviceNameFile
 
-		icacls.exe "C:\actions-runner" /grant:r "runner:(OI)(CI)F" /T
 		Update-GarmStatus -CallbackURL $CallbackURL -Message "Creating system service"
 		$SVC_NAME=(gc -raw $serviceNameFile)
 		New-Service -Name "$SVC_NAME" -BinaryPathName "C:\actions-runner\bin\RunnerService.exe" -DisplayName "$SVC_NAME" -Description "GitHub Actions Runner ($SVC_NAME)" -StartupType Automatic -Credential $pscreds
@@ -685,7 +687,6 @@ function Install-Runner() {
 		Update-GarmStatus -Message "runner successfully installed" -CallbackURL $CallbackURL -Status "idle" | Out-Null
 
 		{{- else }}
-		icacls.exe "C:\actions-runner" /grant:r "runner:(OI)(CI)F" /T
 		$GithubRegistrationToken = Start-ExecuteWithRetry -ScriptBlock {
 			Invoke-WebRequest -UseBasicParsing -Headers @{"Accept"="application/json"; "Authorization"="Bearer $Token"} -Uri $MetadataURL/runner-registration-token/
 		} -MaxRetryCount 5 -RetryInterval 5 -RetryMessage "Retrying download of GitHub registration token..."
