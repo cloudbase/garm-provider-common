@@ -349,3 +349,42 @@ func TestCompressData(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []byte{31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 42, 73, 45, 46, 1, 0, 0, 0, 255, 255, 1, 0, 0, 255, 255, 12, 126, 127, 216, 4, 0, 0, 0}, compressedData)
 }
+
+func TestSanitizeCABundle(t *testing.T) {
+	cert1, err := os.ReadFile("../testdata/cert1.pem")
+	require.NoError(t, err)
+	cert2, err := os.ReadFile("../testdata/cert2.pem")
+	require.NoError(t, err)
+
+	// Normalize CRLF to LF to match pem.Encode output on all platforms.
+	cert1 = bytes.ReplaceAll(cert1, []byte("\r\n"), []byte("\n"))
+	cert2 = bytes.ReplaceAll(cert2, []byte("\r\n"), []byte("\n"))
+
+	t.Run("two valid unique certificates", func(t *testing.T) {
+		bundle := append(cert1, cert2...)
+		result, err := SanitizeCABundle(bundle)
+		require.NoError(t, err)
+		require.Equal(t, bundle, result)
+	})
+
+	t.Run("duplicate certificate is removed", func(t *testing.T) {
+		bundle := append(cert1, cert1...)
+		result, err := SanitizeCABundle(bundle)
+		require.NoError(t, err)
+		require.Equal(t, cert1, result)
+	})
+
+	t.Run("invalid certificate returns error", func(t *testing.T) {
+		invalidPEM := []byte("-----BEGIN CERTIFICATE-----\nbm90LWEtdmFsaWQtY2VydA==\n-----END CERTIFICATE-----\n")
+		bundle := append(cert1, invalidPEM...)
+		_, err := SanitizeCABundle(bundle)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "invalid certificate in PEM bundle")
+	})
+
+	t.Run("no valid PEM blocks", func(t *testing.T) {
+		_, err := SanitizeCABundle([]byte("not a pem bundle"))
+		require.Error(t, err)
+		require.EqualError(t, err, "no valid PEM blocks found in bundle")
+	})
+}
