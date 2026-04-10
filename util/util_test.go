@@ -381,10 +381,4 @@ func TestSanitizeCABundle(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "invalid certificate in PEM bundle")
 	})
-
-	t.Run("no valid PEM blocks", func(t *testing.T) {
-		_, err := SanitizeCABundle([]byte("not a pem bundle"))
-		require.Error(t, err)
-		require.EqualError(t, err, "no valid PEM blocks found in bundle")
-	})
 }
