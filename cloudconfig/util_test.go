@@ -198,6 +198,117 @@ func TestGetCloudConfigInitFailed(t *testing.T) {
 	require.Contains(t, err.Error(), "getting cloud init config: adding CA cert bundle: failed to parse CA cert bundle")
 }
 
+func TestGetCloudInitConfigProxyConfig(t *testing.T) {
+	tests := []struct {
+		name        string
+		proxy       params.ProxyConfig
+		hasBootCmd  bool
+		contains    []string
+		notContains []string
+	}{
+		{
+			name:       "no proxy config",
+			proxy:      params.ProxyConfig{},
+			hasBootCmd: false,
+		},
+		{
+			name: "only HTTP_PROXY",
+			proxy: params.ProxyConfig{
+				HTTPProxy: "http://proxy.example.com:8080",
+			},
+			hasBootCmd: true,
+			contains: []string{
+				`HTTP_PROXY="http://proxy.example.com:8080"`,
+			},
+			notContains: []string{
+				`HTTPS_PROXY="https://`,
+				`NO_PROXY="localhost`,
+			},
+		},
+		{
+			name: "only HTTPS_PROXY",
+			proxy: params.ProxyConfig{
+				HTTPSProxy: "https://proxy.example.com:8443",
+			},
+			hasBootCmd: true,
+			contains: []string{
+				`HTTPS_PROXY="https://proxy.example.com:8443"`,
+			},
+			notContains: []string{
+				`HTTP_PROXY="http://`,
+				`NO_PROXY="localhost`,
+			},
+		},
+		{
+			name: "both HTTP_PROXY and HTTPS_PROXY",
+			proxy: params.ProxyConfig{
+				HTTPProxy:  "http://proxy.example.com:8080",
+				HTTPSProxy: "https://proxy.example.com:8443",
+			},
+			hasBootCmd: true,
+			contains: []string{
+				`HTTP_PROXY="http://proxy.example.com:8080"`,
+				`HTTPS_PROXY="https://proxy.example.com:8443"`,
+			},
+			notContains: []string{
+				`NO_PROXY="localhost`,
+			},
+		},
+		{
+			name: "both proxies with NO_PROXY",
+			proxy: params.ProxyConfig{
+				HTTPProxy:  "http://proxy.example.com:8080",
+				HTTPSProxy: "https://proxy.example.com:8443",
+				NoProxy:    "localhost,127.0.0.1",
+			},
+			hasBootCmd: true,
+			contains: []string{
+				`HTTP_PROXY="http://proxy.example.com:8080"`,
+				`HTTPS_PROXY="https://proxy.example.com:8443"`,
+				`NO_PROXY="localhost,127.0.0.1"`,
+			},
+		},
+		{
+			name: "HTTP_PROXY with NO_PROXY",
+			proxy: params.ProxyConfig{
+				HTTPProxy: "http://proxy.example.com:8080",
+				NoProxy:   "localhost",
+			},
+			hasBootCmd: true,
+			contains: []string{
+				`HTTP_PROXY="http://proxy.example.com:8080"`,
+				`NO_PROXY="localhost"`,
+			},
+			notContains: []string{
+				`HTTPS_PROXY="https://`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			bp := params.BootstrapInstance{
+				ProxyConfig: tc.proxy,
+			}
+			cloudInitCfg, err := GetCloudInitConfig(bp, []byte("test-install-script"))
+			require.NoError(t, err)
+
+			if tc.hasBootCmd {
+				require.Contains(t, cloudInitCfg, "bootcmd:")
+			} else {
+				require.NotContains(t, cloudInitCfg, "bootcmd:")
+			}
+
+			for _, s := range tc.contains {
+				require.Contains(t, cloudInitCfg, s)
+			}
+			for _, s := range tc.notContains {
+				require.NotContains(t, cloudInitCfg, s)
+			}
+		})
+	}
+}
+
 func TestGetCloudConfigUnknownOSType(t *testing.T) {
 	bootstrapParams = params.BootstrapInstance{
 		ExtraSpecs: []byte(extraSpecsJson),
