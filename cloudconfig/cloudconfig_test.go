@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/cloudbase/garm-provider-common/defaults"
+	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
 )
 
@@ -110,6 +111,39 @@ func TestAddFile(t *testing.T) {
 
 func TestAddFilePath(t *testing.T) {
 	cloudInit.AddFile([]byte("content"), "path", "test-owner", "test-permissions")
+}
+
+func TestAddBootCmd(t *testing.T) {
+	ci := getCloudInit()
+	ci.AddBootCmd("echo hello")
+	require.Equal(t, []string{"echo hello"}, ci.BootCmd)
+}
+
+func TestAddBootCmdMultiple(t *testing.T) {
+	ci := getCloudInit()
+	ci.AddBootCmd("echo hello")
+	ci.AddBootCmd("echo world")
+	require.Equal(t, []string{"echo hello", "echo world"}, ci.BootCmd)
+}
+
+func TestAddBootCmdMultiLineSerialize(t *testing.T) {
+	ci := getCloudInit()
+	multiLineCmd := "if [ -f \"/somefile\" ]; then\n   #something\nfi"
+	ci.AddBootCmd(multiLineCmd)
+
+	serialized, err := ci.Serialize()
+	require.NoError(t, err)
+	require.Contains(t, serialized, "bootcmd:")
+	require.Contains(t, serialized, "- |-\n")
+	require.Contains(t, serialized, "if [ -f \"/somefile\" ]; then")
+	require.Contains(t, serialized, "#something")
+	require.Contains(t, serialized, "fi")
+
+	var deserialized CloudInit
+	err = yaml.Unmarshal([]byte(serialized), &deserialized)
+	require.NoError(t, err)
+	require.Len(t, deserialized.BootCmd, 1)
+	require.Equal(t, multiLineCmd, deserialized.BootCmd[0])
 }
 
 func TestSerialize(t *testing.T) {

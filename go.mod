@@ -3,6 +3,7 @@ module github.com/cloudbase/garm-provider-common
 go 1.25.0
 
 require (
+	github.com/goccy/go-yaml v1.19.2
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/websocket v1.5.4-0.20240702125206-a62d9d2a8413
@@ -14,7 +15,6 @@ require (
 	golang.org/x/crypto v0.53.0
 	golang.org/x/sys v0.46.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -22,4 +22,5 @@ require (
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/net v0.56.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
