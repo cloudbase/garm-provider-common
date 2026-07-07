@@ -23,7 +23,7 @@ import (
 
 	"github.com/cloudbase/garm-provider-common/defaults"
 
-	"github.com/goccy/go-yaml"
+	"go.yaml.in/yaml/v4"
 	"github.com/pkg/errors"
 )
 
@@ -180,7 +180,7 @@ func (c *CloudInit) Serialize() (string, error) {
 		"#cloud-config",
 	}
 
-	asYaml, err := yaml.MarshalWithOptions(c, yaml.UseLiteralStyleIfMultiline(true))
+	asYaml, err := yaml.Marshal(c)
 	if err != nil {
 		return "", errors.Wrap(err, "marshaling to yaml")
 	}

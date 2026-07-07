@@ -20,8 +20,8 @@ import (
 	"testing"
 
 	"github.com/cloudbase/garm-provider-common/defaults"
-	"github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/require"
+	"go.yaml.in/yaml/v4"
 )
 
 // helper function
