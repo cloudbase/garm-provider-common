@@ -34,10 +34,13 @@ const (
 )
 
 const (
-	Amd64 OSArch = "amd64"
-	I386  OSArch = "i386"
-	Arm64 OSArch = "arm64"
-	Arm   OSArch = "arm"
+	Amd64   OSArch = "amd64"
+	I386    OSArch = "i386"
+	Arm64   OSArch = "arm64"
+	Arm     OSArch = "arm"
+	Ppc64le OSArch = "ppc64le"
+	S390x   OSArch = "s390x"
+	Riscv64 OSArch = "riscv64"
 )
 
 const (

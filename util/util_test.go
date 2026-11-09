@@ -36,6 +36,39 @@ func TestResolveToGithubArch(t *testing.T) {
 	require.Equal(t, "x64", ghArch)
 }
 
+func TestResolveToGithubArchExtended(t *testing.T) {
+	// Architectures for which only third parties publish patched runners.
+	// GARM picks those up through an endpoint tools metadata URL.
+	for arch, expected := range map[string]string{
+		"ppc64le":     "ppc64le",
+		"ppc64el":     "ppc64le",
+		"powerpc64le": "ppc64le",
+		"s390x":       "s390x",
+		"riscv64":     "riscv64",
+	} {
+		ghArch, err := ResolveToGithubArch(arch)
+		require.NoError(t, err)
+		require.Equal(t, expected, ghArch)
+	}
+}
+
+func TestGetToolsExtendedArch(t *testing.T) {
+	osName := "linux"
+	arch := "s390x"
+	downloadURL := "https://example.com/actions-runner-linux-s390x-2.338.2.tar.gz"
+	tools := []params.RunnerApplicationDownload{
+		{
+			OS:           &osName,
+			Architecture: &arch,
+			DownloadURL:  &downloadURL,
+		},
+	}
+
+	tool, err := GetTools("linux", params.S390x, tools)
+	require.NoError(t, err)
+	require.Equal(t, downloadURL, tool.GetDownloadURL())
+}
+
 func TestResolveToGithubArchUnknown(t *testing.T) {
 	arch := "some-unknown-arch"
 
@@ -250,7 +283,7 @@ func TestGetToolsUnsupportedOSArch(t *testing.T) {
 
 	_, err := GetTools("linux", osArch, nil)
 	require.Error(t, err)
-	require.EqualError(t, err, fmt.Sprintf("unsupported OS arch: %s", osArch))
+	require.EqualError(t, err, fmt.Sprintf("failed to convert osArch: arch %s is unknown", osArch))
 }
 
 func TestGetToolsFailed(t *testing.T) {
