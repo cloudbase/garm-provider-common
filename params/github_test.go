@@ -184,3 +184,45 @@ func TestGetTempDownloadToken(t *testing.T) {
 		})
 	}
 }
+
+func TestPlatform(t *testing.T) {
+	os := "linux"
+	architecture := "s390x"
+	tests := []struct {
+		name string
+		r    *RunnerApplicationDownload
+		want string
+	}{
+		{
+			name: "nil RunnerApplicationDownload",
+			r:    nil,
+			want: "/",
+		},
+		{
+			name: "nil os and architecture",
+			r:    &RunnerApplicationDownload{},
+			want: "/",
+		},
+		{
+			name: "nil architecture",
+			r: &RunnerApplicationDownload{
+				OS: &os,
+			},
+			want: "linux/",
+		},
+		{
+			name: "os and architecture",
+			r: &RunnerApplicationDownload{
+				OS:           &os,
+				Architecture: &architecture,
+			},
+			want: "linux/s390x",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			platform := tt.r.Platform()
+			assert.Equal(t, tt.want, platform)
+		})
+	}
+}
