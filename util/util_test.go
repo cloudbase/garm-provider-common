@@ -278,6 +278,21 @@ func TestGetToolsUnsupportedOSType(t *testing.T) {
 	require.EqualError(t, err, fmt.Sprintf("unsupported OS type: %s", osType))
 }
 
+func TestGetToolsDarwinArm64(t *testing.T) {
+	linux, osx := "linux", "osx"
+	arm64, x64 := "arm64", "x64"
+	macRunner := "actions-runner-osx-arm64.tar.gz"
+	tools := []params.RunnerApplicationDownload{
+		{OS: &linux, Architecture: &arm64},
+		{OS: &osx, Architecture: &x64},
+		{OS: &osx, Architecture: &arm64, Filename: &macRunner},
+	}
+
+	tool, err := GetTools(params.Darwin, params.Arm64, tools)
+	require.NoError(t, err)
+	require.Equal(t, macRunner, tool.GetFilename())
+}
+
 func TestGetToolsUnsupportedOSArch(t *testing.T) {
 	osArch := params.OSArch("some-unknown-arch")
 
